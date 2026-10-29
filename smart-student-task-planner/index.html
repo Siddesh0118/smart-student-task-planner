@@ -1,32 +1,681 @@
 
-const STORAGE_KEY = "smartStudentTaskPlannerTasks";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Student Task & Assignment Planner</title>
 
-function loadTasks() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (saved !== null) {
-      return JSON.parse(saved);
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-  } catch (error) {
-    console.error("Could not load saved tasks:", error);
-  }
 
-  return [
-    { id: 1, title: "Agile Board & Backlog Setup", subject: "Software Engineering", dueDate: "2026-10-20", priority: "High", status: "Completed" },
-    { id: 2, title: "Submit IEEE Literature Survey", subject: "Research Methodology", dueDate: "2026-10-24", priority: "High", status: "Pending" },
-    { id: 3, title: "Frontend UI & Progress Dashboard", subject: "Web Technologies", dueDate: "2026-10-28", priority: "High", status: "In Progress" },
-    { id: 4, title: "Unit Testing & Sprint Review PPT", subject: "Software Engineering", dueDate: "2026-10-30", priority: "Medium", status: "Pending" }
+    body {
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      color: #1e293b;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-top: -10px;
+      margin-bottom: 25px;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    .stat-card {
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .stat-card h3 {
+      margin: 0;
+      font-size: 26px;
+      color: #0f172a;
+    }
+
+    .stat-card p {
+      margin: 5px 0 0;
+      font-size: 13px;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .stat-overdue {
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+
+    .stat-overdue h3,
+    .stat-overdue p {
+      color: #dc2626;
+    }
+
+    .stat-done {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+
+    .stat-done h3,
+    .stat-done p {
+      color: #16a34a;
+    }
+
+    .form-box {
+      background: #f8fafc;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 25px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 2fr 1.5fr 1.2fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #475569;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .btn-add {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 37px;
+    }
+
+    .btn-add:hover {
+      background: #1d4ed8;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th,
+    td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    tr.overdue-row {
+      background-color: #fff1f2;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .prio-High {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .prio-Medium {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .prio-Low {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .overdue-tag {
+      background: #dc2626;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-left: 6px;
+      font-weight: bold;
+    }
+
+    .status-select {
+      padding: 6px;
+      border-radius: 5px;
+      border: 1px solid #cbd5e1;
+      font-weight: 600;
+      font-size: 13px;
+      max-width: 150px;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .btn-delete:hover {
+      background: #dc2626;
+    }
+
+    .empty-message {
+      text-align: center;
+      color: #64748b;
+      padding: 24px;
+    }
+
+    .storage-note {
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 850px) {
+      .form-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .btn-add {
+        width: 100%;
+      }
+
+      .dashboard {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 500px) {
+      body {
+        padding: 10px;
+      }
+
+      .container {
+        padding: 15px;
+      }
+
+      .dashboard {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 23px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>Smart Student Task & Assignment Planner</h1>
+
+  <p class="subtitle">
+    Agile Sprint 1 MVP — Track Deadlines, Priorities & Completion Progress
+  </p>
+
+  <div class="dashboard">
+    <div class="stat-card">
+      <h3 id="totalCount">0</h3>
+      <p>Total Tasks</p>
+    </div>
+
+    <div class="stat-card">
+      <h3 id="pendingCount">0</h3>
+      <p>Pending</p>
+    </div>
+
+    <div class="stat-card">
+      <h3 id="progressCount">0</h3>
+      <p>In Progress</p>
+    </div>
+
+    <div class="stat-card stat-done">
+      <h3 id="completedCount">0</h3>
+      <p>Completed</p>
+    </div>
+
+    <div class="stat-card stat-overdue">
+      <h3 id="overdueCount">0</h3>
+      <p>Overdue!</p>
+    </div>
+  </div>
+
+  <div class="form-box">
+    <div class="form-row">
+
+      <div class="form-group">
+        <label for="taskTitle">Assignment Title</label>
+        <input
+          type="text"
+          id="taskTitle"
+          placeholder="e.g., DBMS ER Diagram Lab"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="taskSubject">Subject</label>
+        <input
+          type="text"
+          id="taskSubject"
+          placeholder="e.g., Database Systems"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="taskDueDate">Due Date</label>
+        <input type="date" id="taskDueDate">
+      </div>
+
+      <div class="form-group">
+        <label for="taskPriority">Priority</label>
+        <select id="taskPriority">
+          <option value="High">High</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </div>
+
+      <button class="btn-add" id="addTaskButton" type="button">
+        + Add Task
+      </button>
+
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Assignment Title</th>
+          <th>Subject</th>
+          <th>Due Date</th>
+          <th>Priority</th>
+          <th>Status (Update)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody id="taskTableBody"></tbody>
+    </table>
+  </div>
+
+  <p class="storage-note">
+    Your assignments are saved in this browser on this device.
+  </p>
+
+</div>
+
+<script>
+  "use strict";
+
+  const STORAGE_KEY = "smartStudentTaskPlannerTasks";
+
+  const starterTasks = [
+    {
+      id: 1,
+      title: "Agile Board & Backlog Setup",
+      subject: "Software Engineering",
+      dueDate: "2026-10-20",
+      priority: "High",
+      status: "Completed"
+    },
+    {
+      id: 2,
+      title: "Submit IEEE Literature Survey",
+      subject: "Research Methodology",
+      dueDate: "2026-10-24",
+      priority: "High",
+      status: "Pending"
+    },
+    {
+      id: 3,
+      title: "Frontend UI & Progress Dashboard",
+      subject: "Web Technologies",
+      dueDate: "2026-10-28",
+      priority: "High",
+      status: "In Progress"
+    },
+    {
+      id: 4,
+      title: "Unit Testing & Sprint Review PPT",
+      subject: "Software Engineering",
+      dueDate: "2026-10-30",
+      priority: "Medium",
+      status: "Pending"
+    }
   ];
-}
 
-let tasks = loadTasks();
+  function loadTasks() {
+    try {
+      const savedTasks = localStorage.getItem(STORAGE_KEY);
 
-function saveTasks() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  } catch (error) {
-    alert("Could not save tasks. Please check browser storage settings.");
-    console.error("Could not save tasks:", error);
+      if (savedTasks !== null) {
+        const parsedTasks = JSON.parse(savedTasks);
+
+        if (
+          Array.isArray(parsedTasks) &&
+          parsedTasks.every(task =>
+            task &&
+            Number.isFinite(task.id) &&
+            typeof task.title === "string" &&
+            typeof task.subject === "string" &&
+            typeof task.dueDate === "string" &&
+            ["High", "Medium", "Low"].includes(task.priority) &&
+            ["Pending", "In Progress", "Completed"].includes(task.status)
+          )
+        ) {
+          return parsedTasks;
+        }
+
+        console.error("Saved task data is invalid. Starter tasks loaded.");
+      }
+    } catch (error) {
+      console.error("Could not load saved tasks:", error);
+    }
+
+    return starterTasks.map(task => ({ ...task }));
   }
-}
+
+  let tasks = loadTasks();
+
+  function saveTasks() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      return true;
+    } catch (error) {
+      console.error("Could not save tasks:", error);
+
+      alert(
+        "Your changes could not be saved to browser storage. " +
+        "Please check your browser settings."
+      );
+
+      return false;
+    }
+  }
+
+  function isOverdue(dueDate, status) {
+    if (status === "Completed" || !dueDate) {
+      return false;
+    }
+
+    // Use the browser's local calendar date.
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const today = `${year}-${month}-${day}`;
+
+    return dueDate < today;
+  }
+
+  function createCell(text) {
+    const cell = document.createElement("td");
+    cell.textContent = text;
+    return cell;
+  }
+
+  function renderTasks() {
+    const tbody = document.getElementById("taskTableBody");
+    tbody.replaceChildren();
+
+    let pending = 0;
+    let inProgress = 0;
+    let completed = 0;
+    let overdue = 0;
+
+    if (tasks.length === 0) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+
+      cell.colSpan = 6;
+      cell.className = "empty-message";
+      cell.textContent = "No assignments yet. Add your first task above.";
+
+      row.appendChild(cell);
+      tbody.appendChild(row);
+    }
+
+    tasks.forEach(task => {
+      const overdueFlag = isOverdue(task.dueDate, task.status);
+
+      if (task.status === "Pending") pending++;
+      if (task.status === "In Progress") inProgress++;
+      if (task.status === "Completed") completed++;
+      if (overdueFlag) overdue++;
+
+      const row = document.createElement("tr");
+
+      if (overdueFlag) {
+        row.className = "overdue-row";
+      }
+
+      const titleCell = document.createElement("td");
+      const titleStrong = document.createElement("strong");
+
+      titleStrong.textContent = task.title;
+      titleCell.appendChild(titleStrong);
+
+      if (overdueFlag) {
+        const tag = document.createElement("span");
+        tag.className = "overdue-tag";
+        tag.textContent = "OVERDUE";
+        titleCell.appendChild(tag);
+      }
+
+      row.appendChild(titleCell);
+      row.appendChild(createCell(task.subject));
+      row.appendChild(createCell(task.dueDate));
+
+      const priorityCell = document.createElement("td");
+      const priorityBadge = document.createElement("span");
+
+      priorityBadge.className = `badge prio-${task.priority}`;
+      priorityBadge.textContent = task.priority;
+      priorityCell.appendChild(priorityBadge);
+      row.appendChild(priorityCell);
+
+      const statusCell = document.createElement("td");
+      const statusSelect = document.createElement("select");
+
+      statusSelect.className = "status-select";
+      statusSelect.setAttribute(
+        "aria-label",
+        `Status for ${task.title}`
+      );
+
+      ["Pending", "In Progress", "Completed"].forEach(status => {
+        const option = document.createElement("option");
+        option.value = status;
+        option.textContent = status;
+        option.selected = task.status === status;
+        statusSelect.appendChild(option);
+      });
+
+      statusSelect.addEventListener("change", () => {
+        updateStatus(task.id, statusSelect.value);
+      });
+
+      statusCell.appendChild(statusSelect);
+      row.appendChild(statusCell);
+
+      const actionCell = document.createElement("td");
+      const deleteButton = document.createElement("button");
+
+      deleteButton.className = "btn-delete";
+      deleteButton.type = "button";
+      deleteButton.textContent = "Delete";
+      deleteButton.setAttribute(
+        "aria-label",
+        `Delete ${task.title}`
+      );
+
+      deleteButton.addEventListener("click", () => {
+        deleteTask(task.id);
+      });
+
+      actionCell.appendChild(deleteButton);
+      row.appendChild(actionCell);
+
+      tbody.appendChild(row);
+    });
+
+    document.getElementById("totalCount").textContent = tasks.length;
+    document.getElementById("pendingCount").textContent = pending;
+    document.getElementById("progressCount").textContent = inProgress;
+    document.getElementById("completedCount").textContent = completed;
+    document.getElementById("overdueCount").textContent = overdue;
+  }
+
+  function addTask() {
+    const title = document.getElementById("taskTitle").value.trim();
+    const subject = document.getElementById("taskSubject").value.trim();
+    const dueDate = document.getElementById("taskDueDate").value;
+    const priority = document.getElementById("taskPriority").value;
+
+    if (!title || !subject || !dueDate) {
+      alert("Please fill in Assignment Title, Subject, and Due Date.");
+      return;
+    }
+
+    const newTask = {
+      id: Date.now(),
+      title,
+      subject,
+      dueDate,
+      priority,
+      status: "Pending"
+    };
+
+    tasks.push(newTask);
+
+    if (!saveTasks()) {
+      tasks.pop();
+      return;
+    }
+
+    document.getElementById("taskTitle").value = "";
+    document.getElementById("taskSubject").value = "";
+    document.getElementById("taskDueDate").value = "";
+    document.getElementById("taskPriority").value = "Medium";
+
+    renderTasks();
+  }
+
+  function updateStatus(id, newStatus) {
+    const task = tasks.find(item => item.id === id);
+
+    if (!task) return;
+
+    const previousStatus = task.status;
+    task.status = newStatus;
+
+    if (!saveTasks()) {
+      task.status = previousStatus;
+    }
+
+    renderTasks();
+  }
+
+  function deleteTask(id) {
+    const index = tasks.findIndex(item => item.id === id);
+
+    if (index === -1) return;
+
+    const deletedTask = tasks[index];
+    tasks.splice(index, 1);
+
+    if (!saveTasks()) {
+      tasks.splice(index, 0, deletedTask);
+    }
+
+    renderTasks();
+  }
+
+  document.getElementById("addTaskButton")
+    .addEventListener("click", addTask);
+
+  // Also allow Enter to add a task from the text fields.
+  ["taskTitle", "taskSubject"].forEach(id => {
+    document.getElementById(id).addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        addTask();
+      }
+    });
+  });
+
+  renderTasks();
+</script>
+
+</body>
+</html>
